@@ -5,6 +5,7 @@ const path = require('path');
 const User = require('../modals/userModal');
 const otp = require('../modals/otpModal');
 const otpModal = require('../modals/otpModal');
+const userModal = require('../modals/userModal');
 
 
 const storage = multer.diskStorage({
@@ -22,7 +23,12 @@ const upload = multer({ storage });
 
 router.post("/sendotp" , async(req,res)=>{
     try {
-        const {mobile} = req.body;
+        const {mobile, type} = req.body;
+        const ifUser = await userModal.findOne({mobile})
+        console.log(ifUser);
+        
+        if (ifUser && type=="new") return res.status(201).send({message:"user already exists"})
+
         const otp = "123456";
         const data = await otpModal.create({
             mobile,
@@ -53,11 +59,7 @@ router.post('/verifyotp', async(req,res)=>{
 router.post('/signup', upload.single('image'), async (req, res) => {
     try {
         const { name, mobile, email, empId, password, role, roleType, joinDate } = req.body;
-
-
         const imageUrl = req.file ? `/uploads/${req.file.filename}` : null;
-
-
         const newUser = new User({
             name,
             mobile,
@@ -67,16 +69,40 @@ router.post('/signup', upload.single('image'), async (req, res) => {
             image: imageUrl,
             role,
             roleType,
-            joinDate
+            joinDate:new Date().toDateString()
         });
-
-
         await newUser.save();
-
-        return res.status(201).json({ message: 'User signed up successfully', user: newUser });
+        console.log(newUser);   
+        return res.status(200).json({ message: 'User signed up successfully'});
     } catch (error) {
         return res.status(500).send(error);
     }
 });
+
+
+
+
+router.post('/login' , async(req,res)=>{
+    try {
+        const {userId, password} = req.body;
+        const userData = await userModal.findOne({
+            $or: [
+              { email: userId },
+              { mobile: userId },
+              { empId: userId }
+            ]
+          });
+
+        if(!userData) return res.status(404).send({message:"user not found"})
+        if(userData.password != password)return res.status(401).send({message:"invalid credentials"})    
+    
+        const { password: _, ...userWithoutPassword } = userData.toObject();        
+        return res.status(200).send(userWithoutPassword);
+        
+    }
+    catch (error) {
+        return res.status(500).send(error);
+    }
+})
 
 module.exports = router;
