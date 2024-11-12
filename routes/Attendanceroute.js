@@ -38,6 +38,9 @@ router.put('/end/:id', isLogin, async (req, res) => {
 
         // Find today's attendance for the user
         const todayDate = new Date().toLocaleDateString();
+
+        console.log(req.params.id);
+        
         const existingAttendance = await AttendanceModal.findOne({
             _id: req.params.id,
             user: req.user,
@@ -61,6 +64,8 @@ router.put('/end/:id', isLogin, async (req, res) => {
 
         return res.status(200).send({ message: "Attendance ended successfully", endAttendance });
     } catch (error) {
+        console.log(error);
+        
         return res.status(500).send({ message: error.message });
     }
 });
@@ -79,5 +84,27 @@ router.get('/today', isLogin, async (req, res) => {
         return res.status(500).send({ message: error.message });
     }
 });
+
+// Fetch attendance for a specific user
+router.get('/userattendance', isLogin, async (req, res) => {
+    try {
+        const userId = req.user; 
+        let attendanceRecords = await AttendanceModal.find({ user: userId })
+            .populate('user', 'name empId'); // Populate user fields if needed
+
+        // Sort attendance records by parsed date (assuming format is consistent, e.g., "MM/DD/YYYY")
+        attendanceRecords = attendanceRecords.sort((a, b) => {
+            return new Date(b.date) - new Date(a.date);
+        });
+
+        return res.status(200).json(attendanceRecords);
+    } catch (error) {
+        return res.status(500).send({ message: error.message });
+    }
+});
+
+
+module.exports = router;
+
 
 module.exports = router;
